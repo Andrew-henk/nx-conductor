@@ -1,6 +1,7 @@
 import { logger } from '@nx/devkit'
 import { SessionInstance, TaskDescriptor, LibraryContext, CompressedSessionHistory } from '../types/session.types'
 import { ClaudeCodeIntegration, ClaudeCodeSession, ClaudeSessionOptions } from './claude-integration'
+import { ProgressTracker, SessionProgress } from './progress-tracker'
 
 export interface SessionTask {
   library: string
@@ -19,10 +20,12 @@ export class SessionPool {
   private taskQueue: SessionTask[] = []
   private sessionIdCounter = 0
   private claudeIntegration: ClaudeCodeIntegration
+  private progressTracker: ProgressTracker
 
   constructor(maxConcurrency: number = 5, workspaceRoot: string = process.cwd()) {
     this.maxConcurrency = maxConcurrency
     this.claudeIntegration = new ClaudeCodeIntegration(workspaceRoot)
+    this.progressTracker = new ProgressTracker(workspaceRoot)
   }
 
   async requestSession(library: string, task: TaskDescriptor, context: LibraryContext, sessionOptions?: ClaudeSessionOptions): Promise<SessionInstance> {
@@ -42,7 +45,7 @@ export class SessionPool {
   }
 
   private async spawnSession(library: string, task: TaskDescriptor, context: LibraryContext, sessionOptions?: ClaudeSessionOptions): Promise<SessionInstance> {
-    const sessionId = `${library}-${++this.sessionIdCounter}-${Date.now()}`
+    const sessionId = `session-${Date.now()}-${this.generateRandomId()}`
     
     const session: SessionInstance = {
       id: sessionId,
@@ -58,6 +61,9 @@ export class SessionPool {
       const claudeSession = await this.startClaudeCodeSession(session, sessionOptions)
       session.claudeCodeProcess = claudeSession
       this.activeSessionsMap.set(sessionId, session)
+      
+      // Start progress tracking
+      this.progressTracker.startTracking(sessionId, library, task.description)
       
       logger.info(`Started Claude Code session ${sessionId} for library ${library}`)
       return session
@@ -133,6 +139,9 @@ export class SessionPool {
 
     session.endTime = new Date()
     session.status = exitCode === 0 ? 'completed' : 'failed'
+    
+    // Stop progress tracking
+    this.progressTracker.stopTracking(sessionId)
     
     this.activeSessionsMap.delete(sessionId)
     this.claudeSessionsMap.delete(sessionId)
@@ -241,5 +250,30 @@ export class SessionPool {
     this.taskQueue.length = 0
 
     logger.info('Session pool shutdown complete')
+  }
+
+  // Enhanced methods for progress tracking
+  getActiveProgress(): SessionProgress[] {
+    return this.progressTracker.getActiveProgress()
+  }
+
+  getSessionLogs(sessionId?: string) {
+    return this.progressTracker.getSessionLogs(sessionId)
+  }
+
+  getRecentCommits(limit: number = 10) {
+    return this.progressTracker.getRecentCommits(limit)
+  }
+
+  async stopSession(sessionId: string): Promise<void> {
+    const session = this.activeSessionsMap.get(sessionId)
+    if (session) {
+      this.progressTracker.stopTracking(sessionId)
+      await this.terminateSession(sessionId)
+    }
+  }
+
+  private generateRandomId(): string {
+    return Math.random().toString(36).substr(2, 9)
   }
 }

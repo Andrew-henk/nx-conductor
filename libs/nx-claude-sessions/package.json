@@ -1,7 +1,7 @@
 {
   "name": "nx-claude-sessions",
-  "version": "1.0.1",
-  "description": "The first NX-native distributed AI development orchestration system that enables library-scoped, concurrency-managed Claude Code sessions with intelligent knowledge persistence and cross-session coordination.",
+  "version": "1.1.0",
+  "description": "The first NX-native distributed AI development orchestration system with real-time progress tracking, auto-commits, and intelligent session management. Features library-scoped Claude Code sessions, concurrency management, knowledge persistence, and comprehensive monitoring.",
   "main": "./src/index.js",
   "types": "./src/index.d.ts",
   "generators": "./generators.json",

@@ -34,6 +34,12 @@ export default async function runExecutor(
         return await handleTerminateCommand(context.root, options)
       case 'list':
         return await handleListCommand(sessionStoragePath, options)
+      case 'logs':
+        return await handleLogsCommand(context.root, options)
+      case 'commits':
+        return await handleCommitsCommand(context.root, options)
+      case 'stop':
+        return await handleStopCommand(context.root, options)
       default:
         return await handleStatusCommand(context.root, options)
     }
@@ -45,23 +51,34 @@ export default async function runExecutor(
 
 async function handleStatusCommand(workspaceRoot: string, options: SessionManagerExecutorSchema) {
   const sessionPool = new SessionPool(5, workspaceRoot)
-  const activeStatus = sessionPool.getActiveSessionsStatus()
+  const activeProgress = sessionPool.getActiveProgress()
   const queueStatus = sessionPool.getQueueStatus()
   
-  logger.info('📊 Session Status')
-  logger.info('================')
+  logger.info('📊 Session Status with Progress Tracking')
+  logger.info('=========================================')
   
-  if (activeStatus.length === 0) {
+  if (activeProgress.length === 0) {
     logger.info('🔄 No active sessions')
   } else {
-    logger.info(`🔄 Active Sessions (${activeStatus.length}):`)
-    activeStatus.forEach(session => {
-      const duration = Math.round(session.duration / 1000)
-      logger.info(`   • ${session.sessionId} - ${session.library} (${duration}s)`)
+    logger.info(`🔄 Active Sessions (${activeProgress.length}):`)
+    activeProgress.forEach(progress => {
+      const progressBar = createProgressBar(progress.progressPercentage)
+      const duration = formatDuration(Date.now() - progress.startTime)
+      
+      logger.info(``)
+      logger.info(`🔹 ${progress.library} (${progress.sessionId})`)
+      logger.info(`   ${progressBar} ${Math.round(progress.progressPercentage)}% │ ETA: ${progress.eta}`)
+      logger.info(`   Phase: ${progress.currentPhase} (${progress.phaseIndex + 1}/${progress.totalPhases})`)
+      logger.info(`   Duration: ${duration} │ Files: ${progress.filesModified.length} │ Commits: ${progress.commits.length}`)
+      
+      if (options.detailed && progress.filesModified.length > 0) {
+        logger.info(`   Recent files: ${progress.filesModified.slice(-3).join(', ')}`)
+      }
     })
   }
   
   if (queueStatus.length > 0) {
+    logger.info(``)
     logger.info(`⏳ Queued Sessions (${queueStatus.length}):`)
     queueStatus.forEach(task => {
       logger.info(`   • ${task.library} (priority: ${task.priority})`)
@@ -71,7 +88,7 @@ async function handleStatusCommand(workspaceRoot: string, options: SessionManage
   const historyCount = await getHistoryCount(join(workspaceRoot, '.nx-claude-sessions'))
   logger.info(`📚 Historical Sessions: ${historyCount}`)
   
-  return { success: true, active: activeStatus.length, queued: queueStatus.length, historical: historyCount }
+  return { success: true, active: activeProgress.length, queued: queueStatus.length, historical: historyCount }
 }
 
 async function handleCleanupCommand(sessionStoragePath: string, options: SessionManagerExecutorSchema) {
@@ -350,4 +367,103 @@ function parseTimespan(timespan: string): number {
     case 'd': return num * 24 * 60 * 60 * 1000
     default: return 7 * 24 * 60 * 60 * 1000
   }
+}
+
+// New command handlers
+
+async function handleLogsCommand(workspaceRoot: string, options: SessionManagerExecutorSchema) {
+  const sessionPool = new SessionPool(5, workspaceRoot)
+  const logs = sessionPool.getSessionLogs(options.sessionId)
+  
+  logger.info('📋 Session Logs')
+  logger.info('================')
+  
+  if (logs.length === 0) {
+    logger.info('No logs found')
+    return { success: true }
+  }
+  
+  const recentLogs = logs.slice(-(options.limit || 10))
+  
+  recentLogs.forEach(log => {
+    const timestamp = new Date(log.timestamp).toLocaleTimeString()
+    const levelEmoji = getLevelEmoji(log.level)
+    const sessionShort = log.sessionId.split('-').pop()
+    
+    logger.info(`[${timestamp}] ${levelEmoji} ${log.level} [${sessionShort}] ${log.message}`)
+  })
+  
+  return { success: true }
+}
+
+async function handleCommitsCommand(workspaceRoot: string, options: SessionManagerExecutorSchema) {
+  const sessionPool = new SessionPool(5, workspaceRoot)
+  const commits = sessionPool.getRecentCommits(options.limit || 10)
+  
+  logger.info('📦 Recent Session Commits')
+  logger.info('=========================')
+  
+  if (commits.length === 0) {
+    logger.info('No commits found')
+    return { success: true }
+  }
+  
+  commits.forEach(commit => {
+    const date = new Date(commit.timestamp).toLocaleString()
+    const shortHash = commit.hash.substring(0, 8)
+    const shortSession = commit.sessionId.split('-').pop()
+    const shortMessage = commit.message.split('\\n')[0]
+    
+    logger.info(``)
+    logger.info(`📦 ${shortHash} - ${date}`)
+    logger.info(`   ${shortMessage}`)
+    logger.info(`   Session: ${shortSession} │ Files: ${commit.filesModified}`)
+  })
+  
+  return { success: true }
+}
+
+async function handleStopCommand(workspaceRoot: string, options: SessionManagerExecutorSchema) {
+  if (!options.sessionId) {
+    logger.error('❌ Session ID required for stop command')
+    return { success: false, error: 'Session ID required' }
+  }
+  
+  const sessionPool = new SessionPool(5, workspaceRoot)
+  
+  try {
+    await sessionPool.stopSession(options.sessionId)
+    logger.info(`⏹️  Stopped session ${options.sessionId}`)
+    return { success: true }
+  } catch (error) {
+    logger.error(`❌ Failed to stop session: ${error}`)
+    return { success: false, error: error instanceof Error ? error.message : String(error) }
+  }
+}
+
+// Utility functions
+
+function createProgressBar(percentage: number, width: number = 20): string {
+  const filled = Math.round((percentage / 100) * width)
+  const empty = width - filled
+  return '█'.repeat(filled) + '▒'.repeat(empty)
+}
+
+function formatDuration(milliseconds: number): string {
+  const seconds = Math.round(milliseconds / 1000)
+  if (seconds < 60) return `${seconds}s`
+  const minutes = Math.floor(seconds / 60)
+  const remainingSeconds = seconds % 60
+  return `${minutes}m ${remainingSeconds}s`
+}
+
+function getLevelEmoji(level: string): string {
+  const emojis = {
+    INFO: '💡',
+    SUCCESS: '✅',
+    ERROR: '❌', 
+    WARNING: '⚠️',
+    PROGRESS: '📊'
+  }
+  return emojis[level as keyof typeof emojis] || '📝'
 }

@@ -7,7 +7,7 @@
   "properties": {
     "command": {
       "type": "string",
-      "enum": ["status", "cleanup", "search", "terminate", "list"],
+      "enum": ["status", "cleanup", "search", "terminate", "list", "logs", "commits", "stop"],
       "description": "Session management command",
       "default": "status"
     },
@@ -37,6 +37,11 @@
       "type": "boolean",
       "description": "Show detailed information",
       "default": false
+    },
+    "limit": {
+      "type": "number",
+      "description": "Limit number of results (for logs and commits)",
+      "default": 10
     }
   },
   "required": [],
