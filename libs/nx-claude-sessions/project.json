@@ -14,7 +14,14 @@
         "tsConfig": "libs/nx-claude-sessions/tsconfig.lib.json",
         "assets": [
           "libs/nx-claude-sessions/generators.json",
-          "libs/nx-claude-sessions/executors.json"
+          "libs/nx-claude-sessions/executors.json",
+          "libs/nx-claude-sessions/README.md",
+          "libs/nx-claude-sessions/LICENSE",
+          {
+            "input": "libs/nx-claude-sessions/src",
+            "glob": "**/*.json",
+            "output": "./src"
+          }
         ]
       }
     },
