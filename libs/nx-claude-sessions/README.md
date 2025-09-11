@@ -14,15 +14,27 @@
 ## 📦 Installation
 
 ```bash
-npm install @nx/claude-sessions
+# Install the plugin
+npm install -D nx-claude-sessions
+
+# Or with yarn
+yarn add -D nx-claude-sessions
+
+# Or with pnpm  
+pnpm add -D nx-claude-sessions
 ```
+
+**Prerequisites:**
+- NX workspace (v21.0.0 or higher)
+- Node.js 18+ 
+- Claude Code CLI installed and accessible in PATH
 
 ## 🛠️ Quick Start
 
 ### 1. Initialize the Plugin
 
 ```bash
-npx nx g @nx/claude-sessions:init
+npx nx g nx-claude-sessions:init
 ```
 
 This will:
@@ -47,10 +59,10 @@ See the comprehensive [Usage](#-usage) section below for all available commands 
 #### Initialize Workspace
 ```bash
 # Basic initialization
-nx g @nx/claude-sessions:init
+nx g nx-claude-sessions:init
 
 # Custom configuration
-nx g @nx/claude-sessions:init \
+nx g nx-claude-sessions:init \
   --maxConcurrency=3 \
   --sessionTimeout=45m \
   --orchestrationStrategy=parallel
@@ -300,7 +312,7 @@ interface LibraryContext {
 
 ### Generators
 
-#### `nx g @nx/claude-sessions:init`
+#### `nx g nx-claude-sessions:init`
 Initialize workspace for Claude Sessions
 
 **Options:**
@@ -752,7 +764,7 @@ npx tsc --project libs/nx-claude-sessions/tsconfig.lib.json --noEmit
 node test-plugin.js
 
 # Test with real NX workspace
-nx g @nx/claude-sessions:init
+nx g nx-claude-sessions:init
 nx start-claude-session <library> --task="test task"
 ```
 
