@@ -11,6 +11,8 @@ export interface ClaudeCodeSession {
   outputHandler: (data: string) => void
   rawMode?: boolean
   dangerousMode?: boolean
+  exitHandler?: (code: number | null) => void
+  errorHandler?: (error: Error) => void
 }
 
 export interface ClaudeSessionOptions {
@@ -95,30 +97,80 @@ export class ClaudeCodeIntegration {
       logger.info(`🔗 Passthrough args: ${options.passthroughArgs.join(' ')}`)
     }
     
-    const claudeProcess = spawn(claudeCodePath || 'claude-code', allArgs, {
-      stdio: ['pipe', 'pipe', 'pipe'],
-      cwd: this.workspaceRoot,
-      env: {
-        ...process.env,
-        NX_CLAUDE_SESSION_ID: session.id,
-        NX_CLAUDE_LIBRARY: session.library,
-        NX_CLAUDE_TASK_TYPE: session.taskDescriptor.type,
-        NX_CLAUDE_DANGEROUS_MODE: options?.dangerouslySkipPermissions ? 'true' : 'false',
-        NX_CLAUDE_RAW_MODE: options?.rawMode ? 'true' : 'false'
-      }
-    })
+    let claudeProcess: ChildProcess
+    
+    try {
+      claudeProcess = spawn(claudeCodePath || 'claude-code', allArgs, {
+        stdio: ['pipe', 'pipe', 'pipe'],
+        cwd: this.workspaceRoot,
+        env: {
+          ...process.env,
+          NX_CLAUDE_SESSION_ID: session.id,
+          NX_CLAUDE_LIBRARY: session.library,
+          NX_CLAUDE_TASK_TYPE: session.taskDescriptor.type,
+          NX_CLAUDE_DANGEROUS_MODE: options?.dangerouslySkipPermissions ? 'true' : 'false',
+          NX_CLAUDE_RAW_MODE: options?.rawMode ? 'true' : 'false'
+        }
+      })
+    } catch (error) {
+      logger.error(`Failed to spawn Claude Code process: ${error}`)
+      throw new Error(`Process spawn failed: ${error}`)
+    }
+
+    // Verify process was created successfully
+    if (!claudeProcess || !claudeProcess.pid) {
+      throw new Error('Claude Code process failed to start - no PID assigned')
+    }
 
     const outputHandler = (data: string) => {
       logger.info(`[${session.id}] ${data.toString().trim()}`)
     }
 
-    claudeProcess.stdout?.on('data', outputHandler)
-    claudeProcess.stderr?.on('data', (data) => {
-      logger.error(`[${session.id}] ${data.toString().trim()}`)
+    // Handle stdout with error recovery
+    if (claudeProcess.stdout) {
+      claudeProcess.stdout.on('data', outputHandler)
+      claudeProcess.stdout.on('error', (error) => {
+        logger.error(`Session ${session.id} stdout error: ${error.message}`)
+      })
+    } else {
+      logger.warn(`Session ${session.id} has no stdout stream`)
+    }
+
+    // Handle stderr with error recovery
+    if (claudeProcess.stderr) {
+      claudeProcess.stderr.on('data', (data) => {
+        logger.error(`[${session.id}] ${data.toString().trim()}`)
+      })
+      claudeProcess.stderr.on('error', (error) => {
+        logger.error(`Session ${session.id} stderr error: ${error.message}`)
+      })
+    } else {
+      logger.warn(`Session ${session.id} has no stderr stream`)
+    }
+
+    // Enhanced error handling
+    claudeProcess.on('error', (error) => {
+      logger.error(`Session ${session.id} process error: ${error.message}`)
     })
 
-    claudeProcess.on('error', (error) => {
-      logger.error(`Session ${session.id} error: ${error.message}`)
+    // Handle process spawn events
+    claudeProcess.on('spawn', () => {
+      logger.debug(`Session ${session.id} process spawned successfully (PID: ${claudeProcess.pid})`)
+    })
+
+    // Handle unexpected process termination
+    claudeProcess.on('exit', (code, signal) => {
+      if (code !== 0 && code !== null) {
+        logger.error(`Session ${session.id} exited with code ${code}`)
+      }
+      if (signal) {
+        logger.warn(`Session ${session.id} terminated by signal ${signal}`)
+      }
+    })
+
+    // Handle process close event
+    claudeProcess.on('close', (code, signal) => {
+      logger.debug(`Session ${session.id} process closed (code: ${code}, signal: ${signal})`)
     })
 
     return {
@@ -196,19 +248,56 @@ export class ClaudeCodeIntegration {
         const { spawn } = require('child_process')
         const testProcess = spawn(path, ['--version'], { 
           stdio: 'ignore',
-          timeout: 1000
+          timeout: 5000
         })
         
-        const exitCode = await new Promise((resolve) => {
-          testProcess.on('exit', resolve)
-          testProcess.on('error', () => resolve(null))
+        const exitCode = await new Promise<number | null>((resolve) => {
+          let timeoutId: NodeJS.Timeout | null = null
+          
+          const cleanup = () => {
+            if (timeoutId) {
+              clearTimeout(timeoutId)
+            }
+            try {
+              if (!testProcess.killed) {
+                testProcess.kill('SIGTERM')
+              }
+            } catch (error) {
+              // Process already terminated
+            }
+          }
+          
+          // Set timeout for the entire operation
+          timeoutId = setTimeout(() => {
+            cleanup()
+            resolve(null)
+          }, 5000)
+          
+          testProcess.on('exit', (code: number | null) => {
+            if (timeoutId) {
+              clearTimeout(timeoutId)
+            }
+            resolve(code)
+          })
+          
+          testProcess.on('error', (error: Error) => {
+            logger.debug(`Failed to test Claude Code at ${path}: ${error.message}`)
+            cleanup()
+            resolve(null)
+          })
+          
+          // Handle spawn errors specifically
+          testProcess.on('spawn', () => {
+            logger.debug(`Successfully spawned test process for ${path}`)
+          })
         })
 
         if (exitCode === 0) {
           logger.info(`Found Claude Code at: ${path}`)
           return path
         }
-      } catch {
+      } catch (error) {
+        logger.debug(`Error testing Claude Code path ${path}: ${error}`)
         continue
       }
     }

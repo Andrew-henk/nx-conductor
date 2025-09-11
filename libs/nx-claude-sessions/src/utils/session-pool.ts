@@ -7,6 +7,7 @@ export interface SessionTask {
   task: TaskDescriptor
   context: LibraryContext
   priority: number
+  sessionOptions?: ClaudeSessionOptions
   resolve: (session: SessionInstance) => void
   reject: (error: Error) => void
 }
@@ -72,14 +73,22 @@ export class SessionPool {
     
     this.claudeSessionsMap.set(session.id, claudeSession)
 
-    claudeSession.process.on('exit', (code) => {
+    // Store event listeners for cleanup
+    const exitHandler = (code: number | null) => {
       this.handleSessionExit(session.id, code)
-    })
-
-    claudeSession.process.on('error', (error) => {
-      logger.error(`Session ${session.id} error: ${error}`)
+    }
+    
+    const errorHandler = (error: Error) => {
+      logger.error(`Session ${session.id} error: ${error.message}`)
       this.handleSessionExit(session.id, 1)
-    })
+    }
+
+    claudeSession.process.on('exit', exitHandler)
+    claudeSession.process.on('error', errorHandler)
+    
+    // Store handlers for cleanup
+    claudeSession.exitHandler = exitHandler
+    claudeSession.errorHandler = errorHandler
 
     return claudeSession
   }
@@ -112,7 +121,15 @@ export class SessionPool {
 
   private handleSessionExit(sessionId: string, exitCode: number | null): void {
     const session = this.activeSessionsMap.get(sessionId)
+    const claudeSession = this.claudeSessionsMap.get(sessionId)
+    
     if (!session) return
+
+    // Clean up event listeners to prevent memory leaks
+    if (claudeSession?.process && claudeSession.exitHandler && claudeSession.errorHandler) {
+      claudeSession.process.removeListener('exit', claudeSession.exitHandler)
+      claudeSession.process.removeListener('error', claudeSession.errorHandler)
+    }
 
     session.endTime = new Date()
     session.status = exitCode === 0 ? 'completed' : 'failed'
@@ -130,7 +147,7 @@ export class SessionPool {
     }
 
     const nextTask = this.taskQueue.shift()!
-    this.spawnSession(nextTask.library, nextTask.task, nextTask.context)
+    this.spawnSession(nextTask.library, nextTask.task, nextTask.context, nextTask.sessionOptions)
       .then(nextTask.resolve)
       .catch(nextTask.reject)
   }
@@ -161,8 +178,24 @@ export class SessionPool {
       throw new Error(`Session ${sessionId} not found or not active`)
     }
 
-    claudeSession.process.kill('SIGTERM')
-    await this.claudeIntegration.terminateSession(sessionId)
+    // Clean up event listeners before terminating
+    if (claudeSession.exitHandler && claudeSession.errorHandler) {
+      claudeSession.process.removeListener('exit', claudeSession.exitHandler)
+      claudeSession.process.removeListener('error', claudeSession.errorHandler)
+    }
+
+    try {
+      claudeSession.process.kill('SIGTERM')
+      await this.claudeIntegration.terminateSession(sessionId)
+    } catch (error) {
+      logger.warn(`Error terminating session ${sessionId}: ${error}`)
+      // Force kill if graceful termination fails
+      try {
+        claudeSession.process.kill('SIGKILL')
+      } catch (killError) {
+        logger.error(`Failed to force kill session ${sessionId}: ${killError}`)
+      }
+    }
     
     session.status = 'completed'
     session.endTime = new Date()
@@ -179,8 +212,24 @@ export class SessionPool {
     await Promise.all(activeSessions.map(async session => {
       const claudeSession = this.claudeSessionsMap.get(session.id)
       if (claudeSession) {
-        claudeSession.process.kill('SIGTERM')
-        await this.claudeIntegration.terminateSession(session.id)
+        // Clean up event listeners
+        if (claudeSession.exitHandler && claudeSession.errorHandler) {
+          claudeSession.process.removeListener('exit', claudeSession.exitHandler)
+          claudeSession.process.removeListener('error', claudeSession.errorHandler)
+        }
+        
+        try {
+          claudeSession.process.kill('SIGTERM')
+          await this.claudeIntegration.terminateSession(session.id)
+        } catch (error) {
+          logger.warn(`Error during shutdown of session ${session.id}: ${error}`)
+          try {
+            claudeSession.process.kill('SIGKILL')
+          } catch (killError) {
+            logger.error(`Failed to force kill session ${session.id}: ${killError}`)
+          }
+        }
+        
         session.status = 'completed'
         session.endTime = new Date()
       }

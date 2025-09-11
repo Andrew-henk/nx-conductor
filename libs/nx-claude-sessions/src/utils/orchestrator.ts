@@ -362,16 +362,37 @@ export class FeatureOrchestrator {
   }
 
   private async waitForPhaseCompletion(sessions: SessionInstance[]): Promise<void> {
-    return new Promise((resolve) => {
+    return new Promise((resolve, reject) => {
+      let retryCount = 0
+      const maxRetries = 450 // 15 minutes timeout (450 * 2000ms)
+      
       const checkInterval = setInterval(() => {
-        const activeStatuses = sessions.map(s => this.sessionPool.getActiveSessionsStatus().find(status => status.sessionId === s.id))
-        const allCompleted = activeStatuses.every(status => !status)
-        
-        if (allCompleted) {
+        try {
+          const activeStatuses = sessions.map(s => this.sessionPool.getActiveSessionsStatus().find(status => status.sessionId === s.id))
+          const allCompleted = activeStatuses.every(status => !status)
+          
+          if (allCompleted) {
+            clearInterval(checkInterval)
+            resolve()
+            return
+          }
+          
+          retryCount++
+          if (retryCount >= maxRetries) {
+            clearInterval(checkInterval)
+            reject(new Error(`Phase completion timeout after ${maxRetries * 2} seconds`))
+            return
+          }
+        } catch (error) {
           clearInterval(checkInterval)
-          resolve()
+          reject(error)
         }
       }, 2000)
+      
+      // Clean up interval on process exit to prevent memory leaks
+      process.once('exit', () => clearInterval(checkInterval))
+      process.once('SIGINT', () => clearInterval(checkInterval))
+      process.once('SIGTERM', () => clearInterval(checkInterval))
     })
   }
 

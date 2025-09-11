@@ -487,23 +487,23 @@ For complex features spanning multiple libraries:
 
 ```bash
 # Analyze feature scope and create orchestration plan
-nx orchestrate-feature user-onboarding \
+nx orchestrate user-onboarding \
   --libraries=auth,user-profile,notifications \
   --strategy=dependency-aware \
-  --max-sessions=4
+  --maxSessions=4
 ```
 
 ### Session Management
 
 ```bash
 # View active sessions
-nx session-status
+nx session-manager --command=status
 
 # Search session history  
-nx session-search "authentication patterns"
+nx session-manager --command=search --query="authentication patterns"
 
 # Archive completed sessions
-nx session-cleanup
+nx session-manager --command=cleanup
 ```
 
 ### Custom Task Descriptors
@@ -593,6 +593,141 @@ Raw mode provides minimal NX context processing for advanced use cases:
 - Reduces session overhead
 - Allows direct Claude Code argument passing
 - Suitable for custom integrations
+
+## 🔧 Troubleshooting
+
+### Common Issues
+
+#### **Claude Code not found**
+```
+❌ Claude Code not found
+💡 Use --customClaudePath to specify location
+💡 Use --dangerouslySkipPermissions to bypass this check
+```
+
+**Solutions:**
+1. **Install Claude Code CLI**: Ensure Claude Code is installed and in your PATH
+2. **Specify custom path**: Use `--customClaudePath="/path/to/claude-code"`
+3. **Check installation**: Run `claude-code --version` to verify installation
+
+#### **Library not found**
+```
+❌ Library 'my-lib' not found in workspace
+```
+
+**Solutions:**
+1. **Verify library exists**: Run `nx show projects` to list all libraries
+2. **Check library name**: Ensure you're using the exact project name from NX
+3. **Library path issues**: Make sure the library has a valid `project.json`
+
+#### **Session fails to start**
+```
+❌ Session failed to start: Permission denied
+```
+
+**Solutions:**
+1. **Check permissions**: Ensure write access to `.nx-claude-sessions` directory
+2. **Workspace validation**: Verify you're in the root of an NX workspace
+3. **Process limits**: Check if you've hit the session concurrency limit (default 5)
+
+#### **Context loading fails**
+```
+⚠️  Could not load library context: ENOENT: no such file or directory
+```
+
+**Solutions:**
+1. **Create claude.md**: Add a `claude.md` file to your library root
+2. **Check file permissions**: Ensure `claude.md` is readable
+3. **Bypass context**: Use `--includeContext=false` to skip context loading
+
+#### **Session hangs or doesn't respond**
+```
+Session auth-123 active... (no activity for 10 minutes)
+```
+
+**Solutions:**
+1. **Check session status**: Run `nx session-manager --command=status`
+2. **Terminate hanging session**: Use `nx session-manager --command=terminate --sessionId=auth-123`
+3. **Restart session pool**: Exit and restart your development environment
+
+#### **Memory or performance issues**
+```
+Session pool using excessive memory (>1GB)
+```
+
+**Solutions:**
+1. **Reduce concurrency**: Lower `maxConcurrency` in plugin configuration
+2. **Clean up sessions**: Run `nx session-manager --command=cleanup`
+3. **Check for leaks**: Look for sessions that haven't properly terminated
+
+### Advanced Debugging
+
+#### **Enable Debug Logging**
+```bash
+# Add debug flags to see detailed process information
+nx start-claude-session my-lib \
+  --task="Debug issue" \
+  --passthroughArgs="--verbose,--debug"
+```
+
+#### **Inspect Session Files**
+```bash
+# Check session storage for debugging
+ls -la .nx-claude-sessions/active/
+ls -la .nx-claude-sessions/history/
+```
+
+#### **Process Monitoring**
+```bash
+# Monitor active Claude Code processes
+ps aux | grep claude-code
+
+# Check session resource usage
+nx session-manager --command=status --detailed=true
+```
+
+### Error Codes
+
+| Error Code | Description | Solution |
+|------------|-------------|----------|
+| `ENOENT` | File or directory not found | Check paths and permissions |
+| `EACCES` | Permission denied | Fix file/directory permissions |
+| `EMFILE` | Too many open files | Reduce session concurrency |
+| `ENOTDIR` | Not a directory | Verify workspace structure |
+| `TIMEOUT` | Operation timed out | Check Claude Code responsiveness |
+
+### Getting Help
+
+1. **Check session logs**: Look in `.nx-claude-sessions/active/{session-id}/` for detailed logs
+2. **Search session history**: Use `nx session-manager --command=search --query="your error"`
+3. **Validate configuration**: Ensure your `nx.json` plugin configuration is correct
+4. **Reset plugin state**: Delete `.nx-claude-sessions` directory to start fresh
+
+### Performance Optimization
+
+#### **Reduce Session Overhead**
+```bash
+# Use raw mode for minimal context
+nx start-claude-session my-lib \
+  --task="Quick fix" \
+  --rawMode=true
+```
+
+#### **Optimize Context Loading**
+```bash
+# Skip context for simple tasks
+nx passthrough \
+  --args="--help" \
+  --includeContext=false
+```
+
+#### **Batch Operations**
+```bash
+# Use orchestration for related tasks
+nx orchestrate "batch updates" \
+  --libraries=lib1,lib2,lib3 \
+  --strategy=sequential
+```
 
 ## 🤝 Contributing
 

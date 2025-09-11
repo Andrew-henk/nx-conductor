@@ -1,12 +1,24 @@
 import { ExecutorContext, logger, createProjectGraphAsync } from '@nx/devkit'
 import { PassthroughExecutorSchema } from './schema'
+import { InputValidator } from '../../utils/validation'
 import { spawn } from 'child_process'
-import { resolve } from 'path'
+import { resolve, join } from 'path'
+import { mkdirSync, writeFileSync } from 'fs'
 
 export default async function runExecutor(
   options: PassthroughExecutorSchema,
   context: ExecutorContext
 ) {
+  // Validate all input options first
+  const validation = InputValidator.validateExecutorOptions(options, context.root)
+  if (!validation.isValid) {
+    const errorMsg = `Invalid options: ${validation.errors.join(', ')}`
+    logger.error(errorMsg)
+    return { success: false, error: errorMsg }
+  }
+  
+  // Use sanitized options
+  const sanitizedOptions = { ...options, ...validation.sanitizedValue }
   logger.info('🔗 Claude Code Passthrough Mode')
   logger.info('===============================')
   
@@ -17,38 +29,56 @@ export default async function runExecutor(
   }
   
   try {
-    const claudePath = options.customClaudePath || await findClaudeCodeBinary()
+    const claudePath = sanitizedOptions.customClaudePath || await findClaudeCodeBinary()
     
-    if (!claudePath && !options.dangerouslySkipPermissions) {
+    if (!claudePath && !sanitizedOptions.dangerouslySkipPermissions) {
       logger.error('❌ Claude Code not found')
       logger.info('💡 Use --customClaudePath to specify location')
       logger.info('💡 Use --dangerouslySkipPermissions to bypass this check')
       return { success: false, error: 'Claude Code binary not found' }
     }
     
-    const workingDir = options.workingDirectory ? resolve(options.workingDirectory) : context.root
-    const args = options.args || []
+    // Validate working directory if provided
+    let workingDir = context.root
+    if (sanitizedOptions.workingDirectory) {
+      const workingDirValidation = InputValidator.validateFilePath(sanitizedOptions.workingDirectory, context.root)
+      if (!workingDirValidation.isValid) {
+        logger.error(`Invalid working directory: ${workingDirValidation.errors.join(', ')}`)
+        return { success: false, error: 'Invalid working directory' }
+      }
+      workingDir = workingDirValidation.sanitizedValue!
+    }
+    
+    const args = sanitizedOptions.passthroughArgs || []
     
     // Add context if requested
-    if (options.includeContext && options.library) {
-      logger.info(`📚 Loading context for library: ${options.library}`)
+    if (sanitizedOptions.includeContext && sanitizedOptions.library) {
+      logger.info(`📚 Loading context for library: ${sanitizedOptions.library}`)
       
       try {
         const projectGraph = await createProjectGraphAsync()
         const LibraryContextLoader = (await import('../../utils/context-loader')).LibraryContextLoader
         const contextLoader = new LibraryContextLoader(context.root, projectGraph)
-        const libraryContext = await contextLoader.loadContext(options.library)
+        const libraryContext = await contextLoader.loadContext(sanitizedOptions.library)
         
-        // Write temporary context file
-        const contextFile = require('path').join(context.root, '.nx-claude-sessions', 'temp', `${options.library}-context.md`)
-        require('fs').mkdirSync(require('path').dirname(contextFile), { recursive: true })
-        require('fs').writeFileSync(contextFile, `# ${options.library} Context\n\n${libraryContext.primary.content}`)
+        // Write temporary context file with safe path construction (library already validated)
+        const sanitizedLibrary = sanitizedOptions.library!.replace(/[^a-zA-Z0-9-_]/g, '_')
+        const contextFile = join(context.root, '.nx-claude-sessions', 'temp', `${sanitizedLibrary}-context.md`)
+        
+        // Validate the resulting path to prevent directory traversal
+        const pathValidation = InputValidator.validateFilePath(contextFile, context.root)
+        if (!pathValidation.isValid) {
+          throw new Error(`Invalid context file path: ${pathValidation.errors.join(', ')}`)
+        }
+        
+        mkdirSync(require('path').dirname(contextFile), { recursive: true })
+        writeFileSync(contextFile, `# ${sanitizedOptions.library} Context\n\n${libraryContext.primary.content}`)
         
         args.unshift('--context-file', contextFile)
         logger.info(`📄 Context file: ${contextFile}`)
       } catch (error) {
         logger.warn(`⚠️  Could not load library context: ${error}`)
-        if (!options.dangerouslySkipPermissions) {
+        if (!sanitizedOptions.dangerouslySkipPermissions) {
           return { success: false, error: 'Failed to load library context' }
         }
       }
@@ -60,7 +90,7 @@ export default async function runExecutor(
     logger.info(`   Arguments: ${args.join(' ')}`)
     logger.info('')
     
-    return await executeClaudeCode(claudePath || 'claude-code', args, workingDir, options)
+    return await executeClaudeCode(claudePath || 'claude-code', args, workingDir, sanitizedOptions)
     
   } catch (error) {
     logger.error(`❌ Passthrough execution failed: ${error}`)
