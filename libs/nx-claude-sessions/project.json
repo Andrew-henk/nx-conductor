@@ -1,0 +1,36 @@
+{
+  "name": "nx-claude-sessions",
+  "$schema": "../../node_modules/nx/schemas/project-schema.json",
+  "sourceRoot": "libs/nx-claude-sessions/src",
+  "projectType": "library",
+  "tags": ["scope:plugin", "type:util"],
+  "targets": {
+    "build": {
+      "executor": "@nx/js:tsc",
+      "outputs": ["{options.outputPath}"],
+      "options": {
+        "outputPath": "dist/libs/nx-claude-sessions",
+        "main": "libs/nx-claude-sessions/src/index.ts",
+        "tsConfig": "libs/nx-claude-sessions/tsconfig.lib.json",
+        "assets": [
+          "libs/nx-claude-sessions/generators.json",
+          "libs/nx-claude-sessions/executors.json"
+        ]
+      }
+    },
+    "lint": {
+      "executor": "@nx/eslint:lint",
+      "options": {
+        "lintFilePatterns": ["libs/nx-claude-sessions/**/*.ts"]
+      }
+    },
+    "test": {
+      "executor": "@nx/jest:jest",
+      "outputs": ["{workspaceRoot}/coverage/{projectRoot}"],
+      "options": {
+        "jestConfig": "libs/nx-claude-sessions/jest.config.ts",
+        "testPathPattern": ["libs/nx-claude-sessions"]
+      }
+    }
+  }
+}

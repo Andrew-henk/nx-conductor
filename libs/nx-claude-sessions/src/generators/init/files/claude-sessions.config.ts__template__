@@ -1,0 +1,37 @@
+/**
+ * Configuration for NX Claude Sessions Plugin
+ * This file provides default configuration that can be overridden in nx.json
+ */
+
+export const defaultClaudeSessionsConfig = {
+  maxConcurrency: <%= maxConcurrency %>,
+  sessionTimeout: '<%= sessionTimeout %>',
+  knowledgeRetention: '<%= knowledgeRetention %>',
+  orchestrationStrategy: '<%= orchestrationStrategy %>',
+  
+  autoTransitions: {
+    enabled: <%= autoTransitions %>,
+    crossLibraryThreshold: 3,
+    topicShiftConfidence: 0.7
+  },
+  
+  sessionStorage: {
+    path: '.nx-claude-sessions',
+    compressionInterval: '7d',
+    maxHistorySize: 100
+  },
+  
+  coordination: {
+    enabled: true,
+    communicationTimeout: '5s',
+    retryAttempts: 3
+  },
+  
+  knowledgeDistillation: {
+    enabled: true,
+    compressionRatio: 0.3,
+    patternExtractionThreshold: 0.6
+  }
+}
+
+export type ClaudeSessionsConfig = typeof defaultClaudeSessionsConfig

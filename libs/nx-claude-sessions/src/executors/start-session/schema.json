@@ -1,0 +1,76 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema",
+  "type": "object",
+  "cli": "nx",
+  "title": "Start Claude Session",
+  "description": "Start a focused Claude Code session for a specific library",
+  "properties": {
+    "library": {
+      "type": "string",
+      "description": "Target library name"
+    },
+    "task": {
+      "type": "string",
+      "description": "Task description for the session"
+    },
+    "taskType": {
+      "type": "string",
+      "enum": ["feature", "bug-fix", "refactor", "test", "documentation"],
+      "description": "Type of task",
+      "default": "feature"
+    },
+    "priority": {
+      "type": "number",
+      "description": "Task priority (1-100)",
+      "default": 50,
+      "minimum": 1,
+      "maximum": 100
+    },
+    "complexity": {
+      "type": "string",
+      "enum": ["low", "medium", "high"],
+      "description": "Estimated task complexity",
+      "default": "medium"
+    },
+    "scope": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Libraries or areas that this task might affect"
+    },
+    "timeout": {
+      "type": "string",
+      "description": "Session timeout override",
+      "default": "30m"
+    },
+    "contextRefresh": {
+      "type": "boolean",
+      "description": "Force refresh of library context",
+      "default": false
+    },
+    "passthroughArgs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Additional arguments to pass directly to Claude Code process"
+    },
+    "dangerouslySkipPermissions": {
+      "type": "boolean",
+      "description": "⚠️  DANGEROUS: Skip all permission checks and safety validations",
+      "default": false
+    },
+    "customClaudePath": {
+      "type": "string",
+      "description": "Custom path to Claude Code binary (bypasses auto-detection)"
+    },
+    "rawMode": {
+      "type": "boolean",
+      "description": "Start Claude Code in raw mode without NX context processing",
+      "default": false
+    }
+  },
+  "required": ["library", "task"],
+  "additionalProperties": false
+}

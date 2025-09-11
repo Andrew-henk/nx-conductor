@@ -1,0 +1,84 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema",
+  "type": "object",
+  "cli": "nx",
+  "title": "Orchestrate Feature",
+  "description": "Orchestrate multi-library feature development with coordinated Claude sessions",
+  "properties": {
+    "feature": {
+      "type": "string",
+      "description": "Feature name or description"
+    },
+    "libraries": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Target libraries for the feature (auto-detected if not provided)"
+    },
+    "maxSessions": {
+      "type": "number",
+      "description": "Maximum concurrent sessions",
+      "default": 3,
+      "minimum": 1,
+      "maximum": 5
+    },
+    "strategy": {
+      "type": "string",
+      "enum": ["dependency-aware", "parallel", "sequential"],
+      "description": "Orchestration strategy",
+      "default": "dependency-aware"
+    },
+    "priority": {
+      "type": "number",
+      "description": "Feature priority (1-100)",
+      "default": 50,
+      "minimum": 1,
+      "maximum": 100
+    },
+    "dryRun": {
+      "type": "boolean",
+      "description": "Show orchestration plan without executing",
+      "default": false
+    },
+    "timeout": {
+      "type": "string",
+      "description": "Feature timeout",
+      "default": "2h"
+    },
+    "coordinationMode": {
+      "type": "string",
+      "enum": ["automatic", "manual", "hybrid"],
+      "description": "How sessions coordinate with each other",
+      "default": "automatic"
+    },
+    "includeTests": {
+      "type": "boolean",
+      "description": "Include test-related tasks in orchestration",
+      "default": true
+    },
+    "passthroughArgs": {
+      "type": "array",
+      "items": {
+        "type": "string"
+      },
+      "description": "Additional arguments to pass to all spawned Claude Code sessions"
+    },
+    "dangerouslySkipPermissions": {
+      "type": "boolean",
+      "description": "⚠️  DANGEROUS: Skip all permission checks for all sessions",
+      "default": false
+    },
+    "customClaudePath": {
+      "type": "string",
+      "description": "Custom path to Claude Code binary for all sessions"
+    },
+    "rawMode": {
+      "type": "boolean",
+      "description": "Start all sessions in raw mode without NX context processing",
+      "default": false
+    }
+  },
+  "required": ["feature"],
+  "additionalProperties": false
+}

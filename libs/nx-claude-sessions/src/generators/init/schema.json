@@ -1,0 +1,45 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema",
+  "type": "object",
+  "cli": "nx",
+  "id": "init",
+  "title": "Initialize NX Claude Sessions",
+  "description": "Initialize NX workspace for Claude Sessions plugin",
+  "properties": {
+    "maxConcurrency": {
+      "type": "number",
+      "description": "Maximum number of concurrent sessions",
+      "default": 5,
+      "minimum": 1,
+      "maximum": 10
+    },
+    "sessionTimeout": {
+      "type": "string",
+      "description": "Session timeout duration",
+      "default": "30m"
+    },
+    "knowledgeRetention": {
+      "type": "string",
+      "description": "How long to retain session knowledge",
+      "default": "30d"
+    },
+    "orchestrationStrategy": {
+      "type": "string",
+      "enum": ["dependency-aware", "parallel", "sequential"],
+      "description": "Strategy for orchestrating multiple sessions",
+      "default": "dependency-aware"
+    },
+    "autoTransitions": {
+      "type": "boolean",
+      "description": "Enable automatic session transitions",
+      "default": true
+    },
+    "skipFormat": {
+      "description": "Skip formatting files",
+      "type": "boolean",
+      "default": false,
+      "x-priority": "internal"
+    }
+  },
+  "additionalProperties": false
+}

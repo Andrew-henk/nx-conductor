@@ -1,0 +1,11 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema",
+  "generators": {
+    "init": {
+      "factory": "./src/generators/init/generator",
+      "schema": "./src/generators/init/schema.json",
+      "description": "Initialize NX workspace for Claude Sessions plugin",
+      "implementation": "./src/generators/init/generator.ts"
+    }
+  }
+}

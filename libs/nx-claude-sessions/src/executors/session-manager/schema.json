@@ -1,0 +1,44 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema",
+  "type": "object",
+  "cli": "nx",
+  "title": "Session Manager",
+  "description": "Manage Claude Code sessions - status, cleanup, search",
+  "properties": {
+    "command": {
+      "type": "string",
+      "enum": ["status", "cleanup", "search", "terminate", "list"],
+      "description": "Session management command",
+      "default": "status"
+    },
+    "sessionId": {
+      "type": "string",
+      "description": "Specific session ID for terminate command"
+    },
+    "query": {
+      "type": "string",
+      "description": "Search query for session history"
+    },
+    "library": {
+      "type": "string",
+      "description": "Filter by library name"
+    },
+    "maxAge": {
+      "type": "string",
+      "description": "Maximum age for cleanup (e.g., '7d', '24h')",
+      "default": "7d"
+    },
+    "includeActive": {
+      "type": "boolean",
+      "description": "Include active sessions in results",
+      "default": true
+    },
+    "detailed": {
+      "type": "boolean",
+      "description": "Show detailed information",
+      "default": false
+    }
+  },
+  "required": [],
+  "additionalProperties": false
+}

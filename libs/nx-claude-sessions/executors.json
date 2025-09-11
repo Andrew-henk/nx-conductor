@@ -1,0 +1,25 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema",
+  "executors": {
+    "start-session": {
+      "implementation": "./src/executors/start-session/executor",
+      "schema": "./src/executors/start-session/schema.json",
+      "description": "Start a focused Claude Code session for a specific library"
+    },
+    "session-manager": {
+      "implementation": "./src/executors/session-manager/executor",
+      "schema": "./src/executors/session-manager/schema.json",
+      "description": "Manage Claude Code sessions - status, cleanup, search, terminate"
+    },
+    "orchestrate": {
+      "implementation": "./src/executors/orchestrate/executor",
+      "schema": "./src/executors/orchestrate/schema.json",
+      "description": "Orchestrate multi-library feature development with coordinated Claude sessions"
+    },
+    "passthrough": {
+      "implementation": "./src/executors/passthrough/executor",
+      "schema": "./src/executors/passthrough/schema.json",
+      "description": "Direct passthrough to Claude Code with optional NX context"
+    }
+  }
+}
