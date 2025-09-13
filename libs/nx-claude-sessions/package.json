@@ -1,11 +1,12 @@
 {
   "name": "nx-claude-sessions",
-  "version": "1.1.0",
-  "description": "The first NX-native distributed AI development orchestration system with real-time progress tracking, auto-commits, and intelligent session management. Features library-scoped Claude Code sessions, concurrency management, knowledge persistence, and comprehensive monitoring.",
+  "version": "1.6.4",
+  "description": "The first NX-native distributed AI development orchestration system with IN-SESSION MODE for Claude Code! Features real-time context injection, intelligent working memory, session continuity, auto-detection of AI environments, and hierarchical knowledge persistence. Perfect for use WITHIN Claude Code sessions - no more recursive CLI launches!",
   "main": "./src/index.js",
   "types": "./src/index.d.ts",
   "generators": "./generators.json",
   "executors": "./executors.json",
+  "nx-migrations": "./migrations.json",
   "license": "MIT",
   "author": {
     "name": "Andrew",
@@ -54,7 +55,15 @@
     "productivity",
     "automation",
     "session-management",
-    "context-awareness",
-    "knowledge-persistence"
+    "context-awareness", 
+    "knowledge-persistence",
+    "working-memory",
+    "ai-amnesia-prevention",
+    "session-continuity",
+    "in-session-mode",
+    "context-injection",
+    "claude-code-integration",
+    "intelligent-assistant",
+    "real-time-tracking"
   ]
 }

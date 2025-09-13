@@ -10,6 +10,10 @@
 - **⚡ Concurrency Management**: Smart session pooling with priority-based queuing (default 5 sessions)
 - **🎯 Context Loading**: Automatic loading of library `claude.md` files, dependencies, and patterns
 - **🔗 Cross-Library Coordination**: Intelligent handoffs and shared resource awareness
+- **🏗️ Hierarchical Knowledge**: Nested knowledge management (workspace + library levels)
+- **📝 Decision Tracking**: Scoped architectural decisions with workspace/library inheritance
+- **🎨 Pattern Recognition**: Identify and store reusable code patterns across sessions
+- **🤖 MCP Integration**: Enhanced intelligence when used with MCP server for cross-session memory
 
 ## 📦 Installation
 
@@ -28,6 +32,78 @@ pnpm add -D nx-claude-sessions
 - NX workspace (v21.0.0 or higher)
 - Node.js 18+ 
 - Claude Code CLI installed and accessible in PATH
+
+### 🛠️ Troubleshooting Installation
+
+#### Common Issues & Solutions
+
+**❌ "Failed to parse npm lockfile" Error**
+```bash
+# Solution 1: Reset NX cache and regenerate lockfile
+npx nx reset
+rm package-lock.json
+npm install
+
+# Solution 2: Use manual initialization
+npx nx-claude-sessions-manual-init
+
+# Solution 3: Downgrade lockfileVersion (if needed)
+# Edit package-lock.json: change "lockfileVersion": 3 to "lockfileVersion": 2
+```
+
+**❌ "Unable to resolve nx-claude-sessions:init" Error**
+```bash
+# Verify installation
+npm ls nx-claude-sessions
+npx nx list | grep claude
+
+# Reinstall if missing
+npm uninstall nx-claude-sessions
+npm install -D nx-claude-sessions
+```
+
+**❌ "Executors not found" Error**
+```bash
+# Check plugin is registered
+cat nx.json | grep claude-sessions
+
+# Re-initialize if needed
+npx nx g nx-claude-sessions:init --skipFormat
+```
+
+**❌ Node.js/NX Version Compatibility**
+```bash
+# Check versions
+node --version    # Should be 18+
+npx nx --version  # Should be 21+
+
+# Update if needed
+npm install -g nx@latest
+```
+
+#### Compatibility Matrix
+
+| NX Version | nx-claude-sessions | Node.js | Status |
+|------------|-------------------|---------|---------|
+| 21.x       | 1.3.0+            | 18+     | ✅ Full Support |
+| 20.x       | 1.0.x             | 18+     | ⚠️ Limited Support |
+| 19.x       | -                 | 16+     | ❌ Not Supported |
+
+#### Manual Fallback Installation
+
+If the generator fails, you can manually set up the intelligence system:
+
+```bash
+# Create session directories
+mkdir -p .nx-claude-sessions/{history,active,archives,coordination}
+
+# Create library .claude directories
+find libs -maxdepth 1 -type d -exec mkdir -p {}/.claude/{sessions,knowledge,context} \;
+
+# Copy configuration templates
+curl -o claude-sessions.config.js https://raw.githubusercontent.com/Andrew-henk/nx-conductor/main/tools/manual-setup.js
+node claude-sessions.config.js
+```
 
 ## 🛠️ Quick Start
 
@@ -48,7 +124,49 @@ This will:
 npx nx start-claude-session auth --task="Implement 2FA authentication"
 ```
 
-### 3. Explore Advanced Features
+### 3. Add Session Support to New Libraries
+
+```bash
+npx nx g nx-claude-sessions:library-session my-new-lib
+```
+
+### 4. Start Your First Hierarchical Session
+
+Your Claude Code sessions now use hierarchical knowledge management:
+
+```bash
+# Start a session with workspace + library context
+nx start-claude-session auth --task="Implement JWT authentication"
+
+# The session automatically loads:
+# 🏢 Workspace decisions: "Use TypeScript strict mode everywhere"
+# 📚 Library decisions: "Auth uses JWT with 15min expiry"
+# 🎨 Workspace patterns: "Standard error handling utility"
+# 🎨 Library patterns: "Auth guard pattern for routes"
+```
+
+**Scoped Knowledge Capture** during sessions:
+```bash
+# In Claude Code - specify scope for decisions:
+"WORKSPACE-DECISION: Standardizing on Zod for all validation"
+"DECISION: This auth library will use bcrypt for passwords"
+"WORKSPACE-PATTERN: Created error response utility"
+"PATTERN: JWT refresh token rotation strategy"
+```
+
+Manage hierarchical knowledge:
+```bash
+# Search across both workspace and library levels
+nx session-manager --command=search --query="validation patterns"
+
+# Extract knowledge with proper scoping
+nx session-manager auth --command=extract-knowledge
+
+# Archive with hierarchical knowledge preservation
+nx session-manager --command=archive --maxAge=24h
+```
+
+### 5. Explore Advanced Features
 
 See the comprehensive [Usage](#-usage) section below for all available commands and options.
 
@@ -84,21 +202,65 @@ nx start-claude-session ui \
 ```
 
 #### Session Management
+
+**Project-Specific Commands:**
 ```bash
-# View active sessions
-nx session-manager --command=status
+# View sessions for a specific library
+nx session-manager <library-name> --command=status
 
-# Search session history
-nx session-manager --command=search --query="authentication"
+# Search session history for a library
+nx session-manager <library-name> --command=search --query="authentication"
 
-# Clean up old sessions
-nx session-manager --command=cleanup --maxAge=7d
+# Clean up sessions for a library
+nx session-manager <library-name> --command=cleanup --maxAge=7d
 
-# Terminate specific session
-nx session-manager --command=terminate --sessionId=auth-123
+# Extract knowledge from completed sessions
+nx session-manager <library-name> --command=extract-knowledge
 
-# List all sessions
-nx session-manager --command=list --detailed=true
+# Archive old sessions
+nx session-manager <library-name> --command=archive --maxAge=24h
+```
+
+**Global (Workspace-Level) Commands:**
+```bash
+# View all active sessions across workspace
+nx run-many -t session-status
+
+# Clean up old sessions across all libraries
+nx run-many -t session-cleanup
+
+# Search sessions across workspace
+nx run-many -t session-search
+
+# Extract knowledge from all completed sessions
+nx session-manager --command=extract-knowledge
+
+# Archive old sessions workspace-wide
+nx session-manager --command=archive --maxAge=48h
+```
+
+**Knowledge & Intelligence Commands:**
+```bash
+# View detailed session logs with progress
+nx session-manager --command=logs --sessionId=<session-id> --limit=20
+
+# Show recent commits from sessions
+nx session-manager --command=commits --limit=10
+
+# Stop a running session gracefully
+nx session-manager --command=stop --sessionId=<session-id>
+
+# Terminate session immediately
+nx session-manager --command=terminate --sessionId=<session-id>
+```
+
+**Add Session Support to New Libraries:**
+```bash
+# Set up Claude session support for a library created after init
+nx g nx-claude-sessions:library-session my-new-lib
+
+# With custom session timeout
+nx g nx-claude-sessions:library-session my-lib --sessionTimeout=45m
 ```
 
 #### Feature Orchestration
@@ -320,6 +482,23 @@ Initialize workspace for Claude Sessions
 - `--sessionTimeout=30m`: Session timeout duration
 - `--orchestrationStrategy=dependency-aware`: Coordination strategy
 
+#### `nx g nx-claude-sessions:library-session <library-name>` **(New in v1.3.0)**
+Set up Claude session support for a specific library (useful for libraries created after workspace init)
+
+**Options:**
+- `--sessionTimeout=30m`: Custom session timeout for this library
+- `--skipFormat`: Skip formatting files after generation
+
+**Example:**
+```bash
+# Add session support to a newly created library
+nx g @nx/js:lib my-new-feature
+nx g nx-claude-sessions:library-session my-new-feature
+
+# With custom timeout
+nx g nx-claude-sessions:library-session api-client --sessionTimeout=45m
+```
+
 ### Executors
 
 #### `nx start-claude-session <library>`
@@ -359,6 +538,52 @@ nx start-claude-session api \
 nx start-claude-session critical-lib \
   --task="Hotfix production issue" \
   --dangerouslySkipPermissions=true
+```
+
+#### `nx session-manager <library> --command=<command>`
+Manage Claude Code sessions for a specific library
+
+**Commands:**
+- `status`: Show session status and history for the library
+- `search`: Search session history with optional query
+- `cleanup`: Clean up old sessions (default: older than 7 days)
+- `list`: List all sessions for the library
+- `terminate`: Terminate a specific session by ID
+
+**Options:**
+- `--query`: Search query (used with `search` command)
+- `--sessionId`: Session ID to terminate (used with `terminate` command)
+- `--maxAge`: Maximum age for cleanup, e.g., "7d", "2w" (used with `cleanup` command)
+- `--detailed`: Show detailed session information
+
+**Examples:**
+```bash
+# Check session status for a library
+nx session-manager auth --command=status
+
+# Search session history
+nx session-manager ui --command=search --query="button styling"
+
+# Clean up old sessions
+nx session-manager api --command=cleanup --maxAge=3d
+
+# Terminate a specific session
+nx session-manager auth --command=terminate --sessionId=auth-session-123
+```
+
+#### Global Session Management **(New in v1.3.0)**
+Manage sessions across the entire workspace using run-many
+
+**Available Global Commands:**
+```bash
+# View status of all active sessions across workspace
+nx run-many -t session-status
+
+# Clean up old sessions across all libraries
+nx run-many -t session-cleanup
+
+# Search sessions across the entire workspace
+nx run-many -t session-search
 ```
 
 #### `nx passthrough`
@@ -490,6 +715,159 @@ New sessions inherit:
 2. Dependency context from related libraries
 3. Compressed wisdom from previous sessions
 4. Established patterns and conventions
+
+## 🏗️ Hierarchical Knowledge Management
+
+### Two-Level Architecture
+
+nx-claude-sessions creates a powerful **hierarchical knowledge system**:
+
+```
+workspace/
+├── .claude/                    # 🏢 WORKSPACE-LEVEL KNOWLEDGE
+│   ├── decisions.json         # Architecture affecting entire workspace
+│   ├── patterns.json          # Cross-library reusable patterns
+│   └── session-history.json   # Workspace session insights
+├── libs/
+│   ├── auth/
+│   │   └── .claude/           # 📚 LIBRARY-LEVEL KNOWLEDGE
+│   │       ├── decisions.json # Auth-specific decisions
+│   │       ├── patterns.json  # Auth patterns & utilities
+│   │       └── session-history.json
+│   └── ui/
+│       └── .claude/           # 📚 LIBRARY-LEVEL KNOWLEDGE
+│           └── ...
+```
+
+### Knowledge Inheritance & Scoping
+
+**Inheritance Chain:**
+1. **Workspace** knowledge applies to all libraries
+2. **Library** knowledge applies to specific domain
+3. **Library overrides workspace** when conflicts exist
+
+**Session Context Loading:**
+```bash
+nx start-claude-session auth --task="Add OAuth integration"
+
+# Loads hierarchical context:
+# 🏢 Workspace: "TypeScript strict mode standard"
+# 🏢 Workspace: "Error handling utility pattern" 
+# 📚 Auth: "JWT 15min expiry decision"
+# 📚 Auth: "bcrypt password hashing choice"
+# 📚 Auth: "Auth guard pattern for routes"
+```
+
+**Scoped Knowledge Capture:**
+
+During Claude Code sessions, specify scope for decisions:
+- `WORKSPACE-DECISION:` → Saved to `/.claude/decisions.json`  
+- `DECISION:` → Saved to `libs/[lib]/.claude/decisions.json`
+- `WORKSPACE-PATTERN:` → Available across all libraries
+- `PATTERN:` → Library-specific implementation
+
+**Real-Time Hierarchical Intelligence:**
+- Context inheritance prevents starting from scratch
+- Workspace standards ensure consistency across teams
+- Library specialization captures domain expertise
+- Automatic scoping based on decision impact
+
+### Knowledge Search Across Hierarchy
+
+```bash
+# Search finds knowledge at both levels
+nx session-manager --command=search --query="validation"
+
+# Results:
+# 🏢 Workspace: "Zod validation standard for all libs"
+# 📚 Auth: "Password validation with strength rules"  
+# 📚 UI: "Form validation patterns for components"
+```
+
+## 🤖 MCP Integration Benefits
+
+### Standalone vs MCP-Enhanced
+
+**Standalone nx-claude-sessions** provides:
+- ✅ Hierarchical knowledge management  
+- ✅ Real-time decision and pattern capture
+- ✅ Local knowledge persistence in `.claude/` directories
+- ✅ Context-aware session initialization
+
+**With MCP Server** (`claude-session-intelligence-mcp`) adds:
+- 🚀 **Cross-Session Memory**: Knowledge persists across ALL Claude Desktop + Claude Code sessions
+- 🔍 **Universal Search**: Query decisions from any Claude session (Desktop, Code, API)
+- 🧠 **Enhanced Context Loading**: Richer context with advanced reasoning capabilities
+- 🔄 **Bidirectional Sync**: Changes made in Claude Desktop sessions flow to Claude Code sessions
+- 📊 **Advanced Analytics**: Pattern recognition across different session types
+
+### MCP Setup for Maximum Benefits
+
+```bash
+# 1. Install MCP server globally
+npm install -g claude-session-intelligence-mcp@latest
+
+# 2. Configure Claude Desktop
+# Add to ~/.config/Claude/claude_desktop_config.json:
+{
+  "mcpServers": {
+    "claude-session-intelligence": {
+      "command": "npx",
+      "args": ["claude-session-intelligence-mcp"],
+      "env": {
+        "WORKSPACE_ROOT": "/path/to/your/nx-workspace"
+      }
+    }
+  }
+}
+
+# 3. Restart Claude Desktop
+```
+
+### Enhanced Workflow with MCP
+
+**In Claude Desktop:**
+```
+Load context for my auth library
+→ Gets hierarchical knowledge from nx-claude-sessions
+
+Record this decision: We're switching from bcrypt to Argon2 for better security
+→ Automatically saved to workspace/.claude/ or libs/auth/.claude/
+
+Show me authentication patterns I can reuse
+→ Displays patterns from both workspace and library levels
+```
+
+**In Claude Code (via nx-claude-sessions):**
+```bash
+nx start-claude-session auth --task="Implement Argon2 hashing"
+# Automatically loads the Argon2 decision made in Claude Desktop
+# Session context includes cross-session knowledge
+```
+
+**Unified Knowledge Base:**
+- Decisions made in Claude Desktop appear in Claude Code sessions
+- Patterns created in Claude Code are searchable in Claude Desktop  
+- Session history spans both environments
+- Knowledge attribution tracks which session/tool created each insight
+
+### MCP-Enhanced Commands
+
+When MCP server is running, enhanced capabilities:
+
+```bash
+# Richer context loading with MCP reasoning
+nx start-claude-session auth --task="Security audit"
+# Loads not just data, but reasoned insights about security decisions
+
+# Advanced pattern matching  
+nx session-manager --command=search --query="security patterns"
+# MCP provides semantic search, not just text matching
+
+# Cross-session recommendations
+nx session-manager auth --command=extract-knowledge  
+# MCP suggests related decisions from other sessions/environments
+```
 
 ## 🚀 Advanced Usage
 
@@ -767,6 +1145,52 @@ node test-plugin.js
 nx g nx-claude-sessions:init
 nx start-claude-session <library> --task="test task"
 ```
+
+## 📋 Changelog
+
+### v1.3.0 (2025-09-12) - Production Ready Release
+
+**🚀 Major Features:**
+- ✅ **New Generator**: Added `library-session` generator for adding session support to libraries created after init
+- ✅ **Global Session Management**: Added `global-session-manager` executor with workspace-level commands
+- ✅ **Enhanced User Experience**: Improved command output with clear project-specific vs global command distinction
+
+**🔧 Bug Fixes:**
+- ✅ Fixed plugin name inconsistency in generator (now correctly uses `nx-claude-sessions`)
+- ✅ Resolved executor registration issues for fresh workspace installations
+- ✅ Fixed TypeScript compilation errors and missing schema files
+
+**📚 Documentation:**
+- ✅ Updated compatibility matrix to v1.3.0+
+- ✅ Added comprehensive usage examples for new features
+- ✅ Improved troubleshooting guide with tested solutions
+
+**⚡ Performance:**
+- ✅ Optimized build process with proper asset inclusion
+- ✅ Streamlined package structure for better npm distribution
+
+### v1.2.2 (2025-09-12)
+- 🔧 Fixed missing template files in published package
+- 🔧 Corrected executor/generator path references
+
+### v1.2.1 (2025-09-12)
+- 🔧 Fixed generator factory paths for proper execution
+
+### v1.2.0 (2025-09-12)
+- ✅ Added comprehensive error handling and diagnostics
+- ✅ Implemented version compatibility checks
+- ✅ Added manual fallback installation system
+
+### v1.1.1 (2025-09-11)
+- 🔧 Fixed ES module imports and schema file references
+
+### v1.1.0 (2025-09-11)
+- ✅ Added real-time progress tracking
+- ✅ Implemented auto-commit functionality  
+- ✅ Enhanced session management capabilities
+
+### v1.0.0 (2025-09-10)
+- 🎉 Initial release with core session orchestration features
 
 ## 📄 License
 

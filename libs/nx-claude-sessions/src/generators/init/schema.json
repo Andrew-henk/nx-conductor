@@ -39,6 +39,11 @@
       "type": "boolean",
       "default": false,
       "x-priority": "internal"
+    },
+    "skipMcp": {
+      "description": "Skip MCP server installation and setup",
+      "type": "boolean",
+      "default": false
     }
   },
   "additionalProperties": false

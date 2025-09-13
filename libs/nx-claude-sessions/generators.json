@@ -2,10 +2,14 @@
   "$schema": "https://json-schema.org/draft-07/schema",
   "generators": {
     "init": {
-      "factory": "./src/generators/init/generator",
+      "factory": "./src/generators/init/generator.js",
       "schema": "./src/generators/init/schema.json",
-      "description": "Initialize NX workspace for Claude Sessions plugin",
-      "implementation": "./src/generators/init/generator.ts"
+      "description": "Initialize NX workspace for Claude Sessions plugin"
+    },
+    "library-session": {
+      "factory": "./src/generators/library-session/generator.js",
+      "schema": "./src/generators/library-session/schema.json",
+      "description": "Set up Claude session targets for a specific library"
     }
   }
 }

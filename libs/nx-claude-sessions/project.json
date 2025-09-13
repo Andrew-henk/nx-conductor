@@ -15,12 +15,18 @@
         "assets": [
           "libs/nx-claude-sessions/generators.json",
           "libs/nx-claude-sessions/executors.json",
+          "libs/nx-claude-sessions/migrations.json",
           "libs/nx-claude-sessions/README.md",
           "libs/nx-claude-sessions/LICENSE",
           {
             "input": "libs/nx-claude-sessions/src",
             "glob": "**/*.json",
             "output": "./src"
+          },
+          {
+            "input": "libs/nx-claude-sessions/src/generators",
+            "glob": "**/files/**/*",
+            "output": "./src/generators"
           }
         ]
       }

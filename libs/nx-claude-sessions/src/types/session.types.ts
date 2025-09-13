@@ -25,6 +25,26 @@ export interface LibraryContext {
   dependencies: string[]
   history: CompressedSessionHistory
   patterns: LibraryPatterns
+  hierarchicalKnowledge?: HierarchicalKnowledge
+  workingMemory?: string
+}
+
+export interface HierarchicalKnowledge {
+  workspace: {
+    decisions: any[]
+    patterns: any[]
+    sessionHistory: any[]
+  }
+  library: {
+    decisions: any[]
+    patterns: any[]
+    sessionHistory: any[]
+  }
+  merged: {
+    decisions: any[]
+    patterns: any[]
+    inheritanceChain: string[]
+  }
 }
 
 export interface ClaudeFileContent {

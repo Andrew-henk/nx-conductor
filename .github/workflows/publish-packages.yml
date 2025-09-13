@@ -1,0 +1,169 @@
+name: Publish @nx-conductor packages
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'  # Triggers on version tags like v1.2.0
+  workflow_dispatch:  # Allow manual trigger
+    inputs:
+      version:
+        description: 'Version to publish (e.g., 1.2.0)'
+        required: true
+        default: '1.2.0'
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+    
+    strategy:
+      matrix:
+        node-version: [18.x, 20.x]
+        
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+          registry-url: 'https://registry.npmjs.org'
+          
+      - name: Cache dependencies
+        uses: actions/cache@v3
+        with:
+          path: ~/.npm
+          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          
+      - name: Install dependencies
+        run: |
+          cd dist/libs/nx-claude-sessions
+          npm ci
+          cd src/mcp-server
+          npm ci
+          
+      - name: Run tests
+        run: |
+          cd dist/libs/nx-claude-sessions
+          npm run test
+          cd src/mcp-server
+          npm run test
+          
+      - name: Build MCP Server
+        run: |
+          cd dist/libs/nx-claude-sessions/src/mcp-server
+          npm run build
+          
+      - name: Verify build artifacts
+        run: |
+          cd dist/libs/nx-claude-sessions/src/mcp-server
+          ls -la dist/
+          [ -f "dist/server.js" ] || exit 1
+          [ -f "dist/server.d.ts" ] || exit 1
+          
+      - name: Publish MCP Server
+        run: |
+          cd dist/libs/nx-claude-sessions/src/mcp-server
+          npm publish --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          
+      - name: Publish Main Plugin
+        run: |
+          cd dist/libs/nx-claude-sessions
+          npm publish --access public  
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+          
+      - name: Create GitHub Release
+        uses: actions/create-release@v1
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        with:
+          tag_name: ${{ github.ref }}
+          release_name: Release ${{ github.ref }}
+          body: |
+            ## 🎉 New Release: @nx-conductor packages
+            
+            ### 📦 Published Packages
+            - `@nx-conductor/claude-sessions@${{ github.ref_name }}`
+            - `@nx-conductor/mcp-server@${{ github.ref_name }}`
+            
+            ### 🚀 Installation
+            ```bash
+            # NX Plugin
+            npm install -D @nx-conductor/claude-sessions
+            
+            # MCP Server (for universal intelligence access)
+            npm install -g @nx-conductor/mcp-server
+            
+            # Or use the setup script
+            npx @nx-conductor/claude-sessions init
+            ```
+            
+            ### 🧠 What's New
+            - Intelligent session management with persistent decision storage
+            - Universal MCP server for cross-project intelligence access
+            - Pattern recognition and reusable solution capture
+            - Enhanced context continuity across sessions
+            
+            ### 📚 Documentation
+            - [Main Plugin README](https://github.com/Andrew-henk/nx-conductor/tree/main/libs/nx-claude-sessions)
+            - [MCP Server Guide](https://github.com/Andrew-henk/nx-conductor/tree/main/libs/nx-claude-sessions/src/mcp-server)
+            
+            **🧠 Every Claude session now builds on accumulated knowledge!**
+          draft: false
+          prerelease: false
+          
+      - name: Wait for NPM propagation
+        run: sleep 30
+        
+      - name: Verify published packages
+        run: |
+          npm view @nx-conductor/claude-sessions@latest
+          npm view @nx-conductor/mcp-server@latest
+          
+      - name: Update documentation links
+        run: |
+          echo "📦 Packages published:"
+          echo "  • https://www.npmjs.com/package/@nx-conductor/claude-sessions"
+          echo "  • https://www.npmjs.com/package/@nx-conductor/mcp-server"
+
+  # Test installation after publish
+  test-installation:
+    needs: publish
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18.x'
+          
+      - name: Wait for package availability
+        run: sleep 60
+        
+      - name: Test package installation
+        run: |
+          # Test MCP server installation
+          npm install -g @nx-conductor/mcp-server@latest
+          which nx-claude-mcp
+          nx-claude-mcp --version || echo "Binary check failed"
+          
+      - name: Test NX plugin installation  
+        run: |
+          # Create test NX workspace
+          npx create-nx-workspace@latest test-workspace --preset=empty --nxCloud=false
+          cd test-workspace
+          
+          # Install plugin
+          npm install -D @nx-conductor/claude-sessions@latest
+          
+          # Test generator
+          npx nx g @nx-conductor/claude-sessions:init --dry-run
+          
+      - name: Report installation test results
+        run: |
+          echo "✅ Installation tests passed"
+          echo "  • MCP server installs globally" 
+          echo "  • NX plugin installs and generates correctly"

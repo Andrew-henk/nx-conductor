@@ -1,0 +1,26 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema",
+  "type": "object",
+  "properties": {
+    "command": {
+      "type": "string",
+      "enum": ["status", "list", "cleanup", "search", "terminate"],
+      "description": "The session management command to execute"
+    },
+    "query": {
+      "type": "string",
+      "description": "Search query for finding sessions (used with 'search' command)"
+    },
+    "sessionId": {
+      "type": "string", 
+      "description": "ID of the session to terminate (used with 'terminate' command)"
+    },
+    "maxAge": {
+      "type": "string",
+      "description": "Maximum age for cleanup (e.g., '7d', '1w') (used with 'cleanup' command)",
+      "default": "7d"
+    }
+  },
+  "required": ["command"],
+  "additionalProperties": false
+}

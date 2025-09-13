@@ -80,3 +80,7 @@ desktop.ini
 *.njsproj
 *.sln
 *.sw?
+
+# Claude Session Intelligence
+.nx-claude-sessions/active/
+.nx-claude-sessions/coordination/

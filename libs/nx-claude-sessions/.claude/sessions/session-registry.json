@@ -1,0 +1,11 @@
+{
+  "active_sessions": [],
+  "session_queue": [],
+  "completed_sessions": [],
+  "settings": {
+    "max_concurrent_sessions": 5,
+    "session_timeout_minutes": 120,
+    "auto_cleanup_enabled": true,
+    "knowledge_compression_threshold": 50
+  }
+}

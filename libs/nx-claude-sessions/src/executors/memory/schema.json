@@ -1,0 +1,61 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema",
+  "type": "object",
+  "cli": "nx",
+  "title": "Working Memory Operations",
+  "description": "Real-time working memory operations for Claude Code sessions - perfect for in-session use",
+  "properties": {
+    "command": {
+      "type": "string",
+      "enum": ["update", "show", "track", "suggest-next", "find-related", "checkpoint", "cleanup"],
+      "description": "Memory operation to perform",
+      "default": "show"
+    },
+    "library": {
+      "type": "string",
+      "description": "Target library name (required for most operations)"
+    },
+    "type": {
+      "type": "string",
+      "enum": ["todo", "completed", "blocked", "question", "change"],
+      "description": "Type of memory entry (for update command)",
+      "default": "completed"
+    },
+    "content": {
+      "type": "string",
+      "description": "Content to add/search for (depends on command)"
+    },
+    "query": {
+      "type": "string",
+      "description": "Search query (for find-related command)"
+    }
+  },
+  "required": [],
+  "additionalProperties": false,
+  "examples": [
+    {
+      "command": "update",
+      "library": "editor-core", 
+      "type": "completed",
+      "content": "Implemented syntax highlighting"
+    },
+    {
+      "command": "show",
+      "library": "editor-core"
+    },
+    {
+      "command": "suggest-next",
+      "library": "editor-core"
+    },
+    {
+      "command": "find-related",
+      "library": "editor-core",
+      "query": "syntax highlighting"
+    },
+    {
+      "command": "checkpoint",
+      "library": "editor-core",
+      "content": "Testing integration"
+    }
+  ]
+}

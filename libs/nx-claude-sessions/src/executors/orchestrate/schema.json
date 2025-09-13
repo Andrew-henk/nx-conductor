@@ -3,7 +3,7 @@
   "type": "object",
   "cli": "nx",
   "title": "Orchestrate Feature",
-  "description": "Orchestrate multi-library feature development with coordinated Claude sessions",
+  "description": "Orchestrate multi-library feature development with coordinated Claude sessions and shared hierarchical knowledge (v1.4.0+)",
   "properties": {
     "feature": {
       "type": "string",

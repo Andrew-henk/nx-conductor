@@ -1,0 +1,55 @@
+{
+  "$schema": "https://json-schema.org/draft-07/schema",
+  "type": "object",
+  "cli": "nx",
+  "title": "Context Operations",
+  "description": "Context injection and analysis operations - perfect for Claude Code sessions",
+  "properties": {
+    "command": {
+      "type": "string",
+      "enum": ["load", "inject", "analyze", "suggest-libraries", "check-dependencies", "generate-plan"],
+      "description": "Context operation to perform",
+      "default": "inject"
+    },
+    "library": {
+      "type": "string",
+      "description": "Target library name"
+    },
+    "task": {
+      "type": "string",
+      "description": "Task description for context and planning"
+    },
+    "format": {
+      "type": "string",
+      "enum": ["markdown", "json", "text"],
+      "description": "Output format",
+      "default": "text"
+    }
+  },
+  "required": [],
+  "additionalProperties": false,
+  "examples": [
+    {
+      "command": "inject",
+      "library": "editor-core",
+      "task": "Add syntax highlighting"
+    },
+    {
+      "command": "analyze",
+      "library": "editor-core"
+    },
+    {
+      "command": "suggest-libraries",
+      "task": "User authentication system"
+    },
+    {
+      "command": "check-dependencies",
+      "library": "editor-core"
+    },
+    {
+      "command": "generate-plan",
+      "library": "editor-core",
+      "task": "Real-time collaboration"
+    }
+  ]
+}

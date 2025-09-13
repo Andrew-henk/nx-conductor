@@ -1,6 +1,7 @@
 import { ExecutorContext, logger, createProjectGraphAsync } from '@nx/devkit'
 import { SessionManagerExecutorSchema } from './schema'
 import { SessionPool } from '../../utils/session-pool'
+import { McpIntegration } from '../../utils/mcp-integration'
 import { existsSync, readdirSync, readFileSync, unlinkSync, statSync } from 'fs'
 import { join } from 'path'
 
@@ -40,6 +41,10 @@ export default async function runExecutor(
         return await handleCommitsCommand(context.root, options)
       case 'stop':
         return await handleStopCommand(context.root, options)
+      case 'extract-knowledge':
+        return await handleExtractKnowledgeCommand(context.root, options)
+      case 'archive':
+        return await handleArchiveCommand(context.root, options)
       default:
         return await handleStatusCommand(context.root, options)
     }
@@ -154,9 +159,60 @@ async function handleSearchCommand(sessionStoragePath: string, options: SessionM
     return { success: false, error: 'Search query required' }
   }
   
-  logger.info(`🔍 Searching sessions for: "${query}"`)
-  logger.info('=====================================')
+  logger.info(`🔍 Searching hierarchical knowledge for: "${query}"`)
+  logger.info('====================================================')
   
+  // Get workspace root from sessionStoragePath  
+  const workspaceRoot = sessionStoragePath.replace('/.nx-claude-sessions', '')
+  const mcpIntegration = new McpIntegration(workspaceRoot)
+  
+  // Search workspace-level knowledge
+  logger.info('🏢 Workspace-level results:')
+  const workspaceDecisions = await mcpIntegration.searchDecisions(query)
+  const workspaceResults = workspaceDecisions.filter(d => d.context.scope === 'workspace')
+  
+  if (workspaceResults.length > 0) {
+    workspaceResults.forEach(decision => {
+      logger.info(`   📋 Decision: ${decision.title}`)
+      logger.info(`      Reasoning: ${decision.reasoning}`)
+      logger.info(`      Impact: ${decision.impact}`)
+      logger.info(`      When: ${new Date(decision.context.timestamp).toLocaleDateString()}`)
+      logger.info('')
+    })
+  } else {
+    logger.info('   No workspace decisions found')
+  }
+  
+  // Search library-level knowledge
+  logger.info('📚 Library-level results:')
+  const libraryDecisions = await mcpIntegration.searchDecisions(query, options.library)
+  const libraryResults = libraryDecisions.filter(d => d.context.scope === 'library')
+  
+  if (libraryResults.length > 0) {
+    // Group by library
+    const decisionsByLibrary = libraryResults.reduce((acc: any, decision) => {
+      const lib = decision.context.library
+      if (!acc[lib]) acc[lib] = []
+      acc[lib].push(decision)
+      return acc
+    }, {})
+    
+    Object.entries(decisionsByLibrary).forEach(([library, decisions]) => {
+      const decisionsArray = decisions as any[]
+      logger.info(`   📂 ${library}:`)
+      decisionsArray.forEach(decision => {
+        logger.info(`      📋 ${decision.title}`)
+        logger.info(`         Reasoning: ${decision.reasoning}`)
+        logger.info(`         Impact: ${decision.impact}`)
+        logger.info(`         When: ${new Date(decision.context.timestamp).toLocaleDateString()}`)
+      })
+      logger.info('')
+    })
+  } else {
+    logger.info('   No library decisions found')
+  }
+  
+  // Also search session history (legacy)
   const results: SessionRecord[] = []
   const historyPath = join(sessionStoragePath, 'history')
   
@@ -189,36 +245,35 @@ async function handleSearchCommand(sessionStoragePath: string, options: SessionM
           })
         })
         
-        // Also search accumulated knowledge
-        const knowledge = history.accumulatedKnowledge || {}
-        if (knowledge.patterns) {
-          knowledge.patterns.forEach((pattern: any) => {
-            if (pattern.pattern.toLowerCase().includes(query) || 
-                pattern.description.toLowerCase().includes(query)) {
-              logger.info(`   📝 Pattern in ${library}: ${pattern.pattern} - ${pattern.description}`)
-            }
-          })
-        }
-        
       } catch (error) {
         logger.warn(`   Could not search history ${historyFile}: ${error}`)
       }
     }
   }
   
-  if (results.length === 0) {
-    logger.info('🔍 No matching sessions found')
-  } else {
-    logger.info(`🔍 Found ${results.length} matching sessions:`)
+  // Summary
+  const totalKnowledgeResults = workspaceResults.length + libraryResults.length
+  const totalSessionResults = results.length
+  
+  logger.info('📊 Search Summary:')
+  logger.info(`   Knowledge decisions found: ${totalKnowledgeResults}`)
+  logger.info(`   Legacy session matches: ${totalSessionResults}`)
+  
+  if (totalSessionResults > 0) {
+    logger.info('\n🗂️ Matching sessions:')
     results.forEach(result => {
       logger.info(`   • ${result.id} - ${result.library} (${result.taskDescription}, ${result.status})`)
-      if (options.detailed) {
-        logger.info(`     Date: ${result.startTime.toISOString()}`)
-      }
     })
   }
   
-  return { success: true, results: results.length, sessions: results }
+  return { 
+    success: true, 
+    knowledgeResults: totalKnowledgeResults,
+    sessionResults: totalSessionResults,
+    workspace: workspaceResults,
+    library: libraryResults,
+    sessions: results 
+  }
 }
 
 async function handleTerminateCommand(workspaceRoot: string, options: SessionManagerExecutorSchema) {
@@ -455,6 +510,224 @@ function formatDuration(milliseconds: number): string {
   const minutes = Math.floor(seconds / 60)
   const remainingSeconds = seconds % 60
   return `${minutes}m ${remainingSeconds}s`
+}
+
+async function handleExtractKnowledgeCommand(workspaceRoot: string, options: SessionManagerExecutorSchema) {
+  logger.info('🧠 Extracting knowledge from completed sessions...')
+  
+  const mcpIntegration = new McpIntegration(workspaceRoot)
+  const sessionStoragePath = join(workspaceRoot, '.nx-claude-sessions')
+  const activePath = join(sessionStoragePath, 'active')
+  
+  if (!existsSync(activePath)) {
+    logger.warn('⚠️ No active sessions directory found')
+    return { success: true, extracted: 0 }
+  }
+
+  let extractedCount = 0
+  const sessionDirs = readdirSync(activePath)
+  
+  for (const sessionDir of sessionDirs) {
+    const sessionPath = join(activePath, sessionDir)
+    
+    try {
+      // Check if session is completed (has completion marker or old enough)
+      const contextPath = join(sessionPath, 'context.md')
+      const logPath = join(sessionPath, 'session.log')
+      
+      if (!existsSync(contextPath)) continue
+      
+      const stats = statSync(sessionPath)
+      const isOldEnoughToArchive = Date.now() - stats.mtime.getTime() > (24 * 60 * 60 * 1000) // 24 hours
+      const hasCompletionMarker = existsSync(join(sessionPath, 'completed.flag'))
+      
+      if (!isOldEnoughToArchive && !hasCompletionMarker) continue
+      
+      logger.info(`   📝 Processing session: ${sessionDir}`)
+      
+      // Extract learnings from the session
+      const learnings = await mcpIntegration.extractSessionLearnings(sessionDir, sessionPath)
+      
+      if (learnings) {
+        // Record any decisions found
+        for (const decision of learnings.keyDecisions) {
+          await mcpIntegration.recordDecision({
+            title: decision,
+            description: `Decision made during session ${sessionDir}`,
+            reasoning: 'Extracted from session content',
+            impact: 'Unknown - requires review',
+            alternatives: [],
+            context: {
+              library: learnings.library,
+              session: sessionDir,
+              timestamp: new Date().toISOString(),
+              author: 'system',
+              scope: 'library' as const
+            },
+            tags: ['extracted', 'auto-generated']
+          })
+        }
+        
+        // Record any patterns found
+        for (const pattern of learnings.patternsCreated) {
+          await mcpIntegration.recordPattern({
+            name: pattern,
+            description: `Pattern created during session ${sessionDir}`,
+            code: '// Code would need to be extracted from session files',
+            language: 'typescript',
+            context: {
+              library: learnings.library,
+              useCase: learnings.taskType,
+              complexity: 'moderate' as const,
+              scope: 'library' as const
+            },
+            tags: ['extracted', 'auto-generated'],
+            relatedPatterns: []
+          })
+        }
+        
+        // Update session history
+        await updateSessionHistory(workspaceRoot, learnings)
+        
+        extractedCount++
+        logger.info(`   ✅ Extracted knowledge from ${sessionDir}`)
+      }
+      
+    } catch (error) {
+      logger.warn(`   ⚠️ Failed to extract knowledge from ${sessionDir}: ${error}`)
+    }
+  }
+  
+  logger.info(`🧠 Knowledge extraction completed: ${extractedCount} sessions processed`)
+  return { success: true, extracted: extractedCount }
+}
+
+async function handleArchiveCommand(workspaceRoot: string, options: SessionManagerExecutorSchema) {
+  logger.info('📦 Archiving completed sessions...')
+  
+  const sessionStoragePath = join(workspaceRoot, '.nx-claude-sessions')
+  const activePath = join(sessionStoragePath, 'active')
+  const archivesPath = join(sessionStoragePath, 'archives')
+  
+  // Ensure archives directory exists
+  require('fs').mkdirSync(archivesPath, { recursive: true })
+  
+  if (!existsSync(activePath)) {
+    logger.warn('⚠️ No active sessions directory found')
+    return { success: true, archived: 0 }
+  }
+
+  let archivedCount = 0
+  const sessionDirs = readdirSync(activePath)
+  const maxAge = parseTimespan(options.maxAge || '24h')
+  const cutoffTime = Date.now() - maxAge
+  
+  for (const sessionDir of sessionDirs) {
+    const sessionPath = join(activePath, sessionDir)
+    
+    try {
+      const stats = statSync(sessionPath)
+      const isOldEnough = stats.mtime.getTime() < cutoffTime
+      const hasCompletionMarker = existsSync(join(sessionPath, 'completed.flag'))
+      
+      if (!isOldEnough && !hasCompletionMarker) continue
+      
+      // Move to archives
+      const archivePath = join(archivesPath, sessionDir)
+      
+      // Create archive entry with metadata
+      const archiveEntry = {
+        sessionId: sessionDir,
+        originalPath: sessionPath,
+        archivedAt: new Date().toISOString(),
+        reason: hasCompletionMarker ? 'completed' : 'aged_out',
+        size: getDirectorySize(sessionPath)
+      }
+      
+      // Move directory to archives
+      require('fs').renameSync(sessionPath, archivePath)
+      
+      // Create archive index entry
+      const archiveIndexPath = join(archivesPath, 'archive-index.json')
+      let archiveIndex: any[] = []
+      
+      if (existsSync(archiveIndexPath)) {
+        archiveIndex = JSON.parse(readFileSync(archiveIndexPath, 'utf-8'))
+      }
+      
+      archiveIndex.push(archiveEntry)
+      require('fs').writeFileSync(archiveIndexPath, JSON.stringify(archiveIndex, null, 2))
+      
+      archivedCount++
+      logger.info(`   📦 Archived session: ${sessionDir}`)
+      
+    } catch (error) {
+      logger.warn(`   ⚠️ Failed to archive ${sessionDir}: ${error}`)
+    }
+  }
+  
+  logger.info(`📦 Archiving completed: ${archivedCount} sessions archived`)
+  return { success: true, archived: archivedCount }
+}
+
+async function updateSessionHistory(workspaceRoot: string, learnings: any) {
+  try {
+    const historyPath = join(workspaceRoot, 'libs', learnings.library, '.claude', 'session-history.json')
+    let history: any = { sessions: [], totalSessions: 0 }
+    
+    if (existsSync(historyPath)) {
+      history = JSON.parse(readFileSync(historyPath, 'utf-8'))
+    }
+    
+    history.sessions = history.sessions || []
+    history.sessions.push({
+      sessionId: learnings.sessionId,
+      date: new Date().toISOString(),
+      taskType: learnings.taskType,
+      outcome: learnings.outcome,
+      duration: learnings.duration,
+      keyDecisions: learnings.keyDecisions,
+      patternsCreated: learnings.patternsCreated,
+      lessonsLearned: learnings.lessonsLearned,
+      recommendations: learnings.recommendations
+    })
+    
+    history.totalSessions = (history.totalSessions || 0) + 1
+    
+    // Keep only the last 20 sessions to avoid bloat
+    if (history.sessions.length > 20) {
+      history.sessions = history.sessions.slice(-20)
+    }
+    
+    require('fs').mkdirSync(require('path').dirname(historyPath), { recursive: true })
+    require('fs').writeFileSync(historyPath, JSON.stringify(history, null, 2))
+    
+  } catch (error) {
+    logger.warn(`⚠️ Failed to update session history: ${error}`)
+  }
+}
+
+function getDirectorySize(dirPath: string): number {
+  let totalSize = 0
+  
+  try {
+    const files = readdirSync(dirPath)
+    
+    for (const file of files) {
+      const filePath = join(dirPath, file)
+      const stats = statSync(filePath)
+      
+      if (stats.isDirectory()) {
+        totalSize += getDirectorySize(filePath)
+      } else {
+        totalSize += stats.size
+      }
+    }
+  } catch {
+    // Ignore errors
+  }
+  
+  return totalSize
 }
 
 function getLevelEmoji(level: string): string {

@@ -1,7 +1,10 @@
 {
   "$schema": "./node_modules/nx/schemas/nx-schema.json",
   "namedInputs": {
-    "default": ["{projectRoot}/**/*", "sharedGlobals"],
+    "default": [
+      "{projectRoot}/**/*",
+      "sharedGlobals"
+    ],
     "production": [
       "default",
       "!{projectRoot}/.eslintrc.json",
@@ -17,8 +20,13 @@
   "targetDefaults": {
     "@nx/js:tsc": {
       "cache": true,
-      "dependsOn": ["^build"],
-      "inputs": ["production", "^production"]
+      "dependsOn": [
+        "^build"
+      ],
+      "inputs": [
+        "production",
+        "^production"
+      ]
     },
     "@nx/eslint:lint": {
       "cache": true,
@@ -31,7 +39,11 @@
     },
     "@nx/jest:jest": {
       "cache": true,
-      "inputs": ["default", "^production", "{workspaceRoot}/jest.preset.js"],
+      "inputs": [
+        "default",
+        "^production",
+        "{workspaceRoot}/jest.preset.js"
+      ],
       "options": {
         "passWithNoTests": true
       },
@@ -47,5 +59,26 @@
     "version": {
       "preVersionCommand": "npx nx run-many -t build"
     }
-  }
+  },
+  "plugins": [
+    {
+      "plugin": "./dist/libs/nx-claude-sessions",
+      "options": {
+        "maxConcurrency": 5,
+        "sessionTimeout": "30m",
+        "knowledgeRetention": "30d",
+        "orchestrationStrategy": "dependency-aware",
+        "autoTransitions": {
+          "enabled": true,
+          "crossLibraryThreshold": 3,
+          "topicShiftConfidence": 0.7
+        },
+        "sessionStorage": {
+          "path": ".nx-claude-sessions",
+          "compressionInterval": "7d",
+          "maxHistorySize": 100
+        }
+      }
+    }
+  ]
 }

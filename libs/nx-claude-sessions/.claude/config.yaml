@@ -1,0 +1,22 @@
+name: "nx-claude-sessions"
+type: "library"
+intelligence:
+  enabled: true
+  session_limit: 5
+  knowledge_retention: true
+  context_inheritance: true
+  
+orchestration:
+  master_session: false
+  worker_sessions: true
+  concurrency_limit: 3
+  
+nx_integration:
+  project_name: "nx-claude-sessions" 
+  dependency_aware: true
+  shared_resources: true
+  
+knowledge:
+  patterns_file: "knowledge/patterns.md"
+  decisions_file: "knowledge/decisions.md"
+  context_file: "context/library-context.md"

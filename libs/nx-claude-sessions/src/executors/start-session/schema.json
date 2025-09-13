@@ -3,7 +3,7 @@
   "type": "object",
   "cli": "nx",
   "title": "Start Claude Session",
-  "description": "Start a focused Claude Code session for a specific library",
+  "description": "Start a focused Claude Code session for a specific library with hierarchical knowledge context (workspace + library-specific knowledge inheritance)",
   "properties": {
     "library": {
       "type": "string",

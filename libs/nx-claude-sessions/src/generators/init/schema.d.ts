@@ -5,4 +5,5 @@ export interface InitGeneratorSchema {
   orchestrationStrategy?: 'dependency-aware' | 'parallel' | 'sequential'
   autoTransitions?: boolean
   skipFormat?: boolean
+  skipMcp?: boolean
 }

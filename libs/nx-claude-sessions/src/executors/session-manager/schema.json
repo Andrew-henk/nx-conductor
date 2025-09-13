@@ -2,12 +2,12 @@
   "$schema": "https://json-schema.org/draft-07/schema",
   "type": "object",
   "cli": "nx",
-  "title": "Session Manager",
-  "description": "Manage Claude Code sessions - status, cleanup, search",
+  "title": "Session Manager", 
+  "description": "Manage Claude Code sessions with hierarchical knowledge search - status, cleanup, search workspace/library knowledge, extract learnings, archive sessions",
   "properties": {
     "command": {
       "type": "string",
-      "enum": ["status", "cleanup", "search", "terminate", "list", "logs", "commits", "stop"],
+      "enum": ["status", "cleanup", "search", "terminate", "list", "logs", "commits", "stop", "extract-knowledge", "archive"],
       "description": "Session management command",
       "default": "status"
     },

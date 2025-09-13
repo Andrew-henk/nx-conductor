@@ -1,5 +1,5 @@
 export interface SessionManagerExecutorSchema {
-  command?: 'status' | 'cleanup' | 'search' | 'terminate' | 'list' | 'logs' | 'commits' | 'stop'
+  command?: 'status' | 'cleanup' | 'search' | 'terminate' | 'list' | 'logs' | 'commits' | 'stop' | 'extract-knowledge' | 'archive'
   sessionId?: string
   query?: string
   library?: string

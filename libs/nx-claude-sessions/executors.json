@@ -2,24 +2,39 @@
   "$schema": "https://json-schema.org/draft-07/schema",
   "executors": {
     "start-session": {
-      "implementation": "./src/executors/start-session/executor",
+      "implementation": "./src/executors/start-session/executor.js",
       "schema": "./src/executors/start-session/schema.json",
       "description": "Start a focused Claude Code session for a specific library"
     },
     "session-manager": {
-      "implementation": "./src/executors/session-manager/executor",
+      "implementation": "./src/executors/session-manager/executor.js",
       "schema": "./src/executors/session-manager/schema.json",
       "description": "Manage Claude Code sessions - status, cleanup, search, terminate"
     },
     "orchestrate": {
-      "implementation": "./src/executors/orchestrate/executor",
+      "implementation": "./src/executors/orchestrate/executor.js",
       "schema": "./src/executors/orchestrate/schema.json",
       "description": "Orchestrate multi-library feature development with coordinated Claude sessions"
     },
     "passthrough": {
-      "implementation": "./src/executors/passthrough/executor",
+      "implementation": "./src/executors/passthrough/executor.js",
       "schema": "./src/executors/passthrough/schema.json",
       "description": "Direct passthrough to Claude Code with optional NX context"
+    },
+    "global-session-manager": {
+      "implementation": "./src/executors/global-session-manager/executor.js",
+      "schema": "./src/executors/global-session-manager/schema.json",
+      "description": "Global session management commands (status, cleanup, search, terminate)"
+    },
+    "memory": {
+      "implementation": "./src/executors/memory/executor.js",
+      "schema": "./src/executors/memory/schema.json",
+      "description": "Real-time working memory operations for Claude Code sessions"
+    },
+    "context": {
+      "implementation": "./src/executors/context/executor.js",
+      "schema": "./src/executors/context/schema.json",
+      "description": "Context injection and analysis operations for Claude Code sessions"
     }
   }
 }
